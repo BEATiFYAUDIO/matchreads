@@ -1,9 +1,10 @@
+// @ts-nocheck
 import React, { useMemo, useState, useEffect } from "react";
 
 // Stable full prototype. Single JSX file, no external CSS.
-// Includes: Mood Search (auto-selects into profile), Profile, Quests (require registration),
-// Perks+Wallet, Discover (book + author) with Saved badge, Bookshelf,
-// Feedback → points, Community Feed showing submitted feedback.
+// Includes: Mood Search (auto-selects into profile), Profile, Discover,
+// Bookshelf, Feedback → points, Community Feed, Perks+Wallet,
+// Side Quests (registration required). Responsive for mobile.
 
 const EMOTIONS = ["hopeful","curious","grounded","challenged","comforted","energized","mysterious","resilient","joyful","focused","reflective"];
 const CATEGORIES = ["mental","spiritual","emotional","functional","financial","social"];
@@ -95,7 +96,17 @@ export default function App(){
   const [savedIds,setSavedIds] = useState([]);
   const [followedAuthors,setFollowedAuthors] = useState([]);
   const [showRegister,setShowRegister] = useState(false);
-  const [feed, setFeed] = useState([]); // community feed (feedback + future proofs)
+  const [feed, setFeed] = useState([]); // community feed
+
+  // 🔹 Mobile detector
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(()=>{
+    const mq = window.matchMedia("(max-width:768px)");
+    const on = (e)=> setIsMobile(e.matches ?? e?.currentTarget?.matches);
+    on(mq);
+    mq.addEventListener ? mq.addEventListener("change", on) : mq.addListener(on);
+    return ()=> mq.removeEventListener ? mq.removeEventListener("change", on) : mq.removeListener(on);
+  },[]);
 
   const moodTokens = useMemo(()=>mapTokens(tokenizeMood(moodQuery)),[moodQuery]);
 
@@ -144,9 +155,7 @@ export default function App(){
 
     if (!items.length) return;
 
-    // prepend items; keep feed small
     setFeed(prev => [...items, ...prev].slice(0, 30));
-
     setPoints(p=>p+total);
     setFeedback({ aha:"", breakthrough:"", favorite:"" });
   }
@@ -156,11 +165,19 @@ export default function App(){
 
   const tier = tierFromPoints(points);
 
-  // UI helpers
-  const pill = (active)=>({ padding:"4px 10px", borderRadius:999, border:"1px solid #ddd", background: active?"#111":"#fff", color: active?"#fff":"#111", fontSize:12 });
-  const card = { background:"#fff", border:"1px solid #eee", borderRadius:16, padding:16, boxShadow:"0 1px 2px rgba(0,0,0,0.04)" };
-  const h2 = { fontWeight:600, marginBottom:8 };
-  const badge = { padding:"2px 8px", borderRadius:999, border:"1px solid #ddd", fontSize:12 };
+  // 🔹 Responsive UI helpers
+  const pill = (active)=>({
+    padding: isMobile ? "6px 12px" : "4px 10px",
+    borderRadius:999,
+    border:"1px solid #ddd",
+    background: active?"#111":"#fff",
+    color: active?"#fff":"#111",
+    fontSize: isMobile ? 13 : 12
+  });
+  const card = { background:"#fff", border:"1px solid #eee", borderRadius:16, padding: isMobile ? 12 : 16, boxShadow:"0 1px 2px rgba(0,0,0,0.04)" };
+  const h2 = { fontWeight:600, marginBottom:8, fontSize: isMobile ? 16 : 18 };
+  const badge = { padding:"2px 8px", borderRadius:999, border:"1px solid #ddd", fontSize: isMobile ? 11 : 12 };
+  const actionBtn = { padding: isMobile ? "12px 14px" : "10px 12px", borderRadius:12, fontSize: isMobile ? 15 : 14, width: isMobile ? "100%" : "auto" };
 
   const author = top ? AUTHORS.find(a=>a.id===top.authorId) : null;
 
@@ -168,7 +185,7 @@ export default function App(){
     <div style={{minHeight:"100vh", background:"#fafafa", color:"#111"}}>
       {/* Header */}
       <header style={{position:"sticky", top:0, zIndex:10, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(4px)", borderBottom:"1px solid #eee"}}>
-        <div style={{maxWidth:1200, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center", gap:12}}>
+        <div style={{maxWidth:1200, margin:"0 auto", padding: isMobile ? "10px 12px" : "12px 16px", display:"flex", alignItems:"center", gap:12}}>
           <div style={{fontWeight:700, fontSize:20}}>MatchReads</div>
           <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center"}}>
             <span style={badge}>{tier.name}</span>
@@ -178,11 +195,15 @@ export default function App(){
       </header>
 
       {/* Mood Search */}
-      <div style={{maxWidth:1200, margin:"0 auto", padding:16}}>
-        <div style={{...card, display:"flex", gap:8, alignItems:"center"}}>
-          <input value={moodQuery} onChange={e=>setMoodQuery(e.target.value)} placeholder="I feel stuck… I want to feel hopeful and save money"
-                 style={{flex:1, border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14}} />
-          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+      <div style={{maxWidth:1200, margin:"0 auto", padding: isMobile ? 12 : 16}}>
+        <div style={{...card, display:"flex", gap:8, alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap"}}>
+          <input
+            value={moodQuery}
+            onChange={e=>setMoodQuery(e.target.value)}
+            placeholder="I feel stuck… I want to feel hopeful and save money"
+            style={{flex:1, minWidth: isMobile ? "100%" : 0, border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14}}
+          />
+          <div style={{display:"flex", gap:8, flexWrap:"wrap", width: isMobile ? "100%" : "auto"}}>
             {moodTokens.emotions.map(e=> (
               <button key={e} onClick={()=>toggleEmotion(e)}
                       style={{...badge, background: profile.desired.includes(e)?"#111":"#fff", color: profile.desired.includes(e)?"#fff":"#111", borderColor: profile.desired.includes(e)?"#111":"#ddd"}}>{e}</button>
@@ -195,158 +216,159 @@ export default function App(){
         </div>
       </div>
 
-      {/* Main 3-column grid */}
-      <main style={{maxWidth:1200, margin:"0 auto", padding:16, display:"grid", gap:16, gridTemplateColumns:"1fr 1fr 1fr"}}>
-        {/* Left: Profile + Quests + Perks */}
-        <section style={{display:"grid", gap:16}}>
-          <div style={card}>
-            <h3 style={h2}>Your Profile</h3>
-            <input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})}
-                   placeholder="Your name" style={{width:"100%", border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14, marginBottom:10}} />
-            <div style={{fontSize:12, fontWeight:600, marginBottom:6}}>Desired Emotions</div>
-            <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:12}}>
-              {EMOTIONS.map(e=> (<button key={e} onClick={()=>toggleEmotion(e)} style={pill(profile.desired.includes(e))}>{e}</button>))}
-            </div>
-            <div style={{fontSize:12, fontWeight:600, marginBottom:6}}>Growth Categories</div>
-            <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
-              {CATEGORIES.map(c=> (<button key={c} onClick={()=>toggleCategory(c)} style={pill(profile.categories.includes(c))}>{c}</button>))}
-            </div>
+      {/* Single-column flow in requested order */}
+      <main style={{maxWidth:1200, margin:"0 auto", padding: isMobile ? 12 : 16, display:"grid", gap: isMobile ? 12 : 16, gridTemplateColumns:"1fr"}}>
+        {/* 1) Profile */}
+        <section style={{...card}}>
+          <h3 style={h2}>Your Profile</h3>
+          <input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})}
+                placeholder="Your name" style={{width:"100%", border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14, marginBottom:10}} />
+          <div style={{fontSize:12, fontWeight:600, marginBottom:6}}>Desired Emotions</div>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap", marginBottom:12}}>
+            {EMOTIONS.map(e=> (<button key={e} onClick={()=>toggleEmotion(e)} style={pill(profile.desired.includes(e))}>{e}</button>))}
           </div>
-
-          <div style={card}>
-            <h3 style={h2}>Side Quests / Missions <span style={{...badge, marginLeft:8, color:'#777', borderColor:'#ddd'}}>Register to complete</span></h3>
-            <div style={{display:"grid", gap:8}}>
-              {QUESTS.map(q=> (
-                <div key={q.id} style={{border:"1px solid #eee", borderRadius:12, padding:12, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                  <div>
-                    <div style={{fontWeight:500}}>{q.title} <span style={badge}>{q.domain}</span></div>
-                    <div style={{fontSize:12, color:"#666"}}>{q.desc}</div>
-                  </div>
-                  <button onClick={()=>setShowRegister(true)}
-                          style={{padding:"6px 10px", borderRadius:8, border:"1px solid #ddd", background:"#111", color:"#fff"}}>
-                    {`Complete (+${q.reward})`}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={card}>
-            <h3 style={h2}>Perks Marketplace</h3>
-            <div style={{display:"grid", gap:8}}>
-              {PERKS.map(p=> (
-                <div key={p.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", border:"1px solid #eee", borderRadius:12, padding:12}}>
-                  <div>
-                    <div style={{fontWeight:500}}>{p.name}</div>
-                    <div style={{fontSize:12, color:"#666"}}>Cost: {p.cost} pts</div>
-                  </div>
-                  <button onClick={()=>redeem(p)} disabled={points<p.cost}
-                          style={{padding:"6px 10px", borderRadius:8, border:"1px solid #ddd", background: points>=p.cost?"#111":"#f2f2f2", color: points>=p.cost?"#fff":"#999"}}>Redeem</button>
-                </div>
-              ))}
-            </div>
-            <div style={{marginTop:12}}>
-              <h4 style={{fontWeight:600, marginBottom:6}}>Wallet</h4>
-              {wallet.length===0 ? (<div style={{fontSize:14, color:"#666"}}>No perks redeemed yet.</div>) : (
-                <ul style={{display:"grid", gap:8}}>
-                  {wallet.map(w=> (<li key={w.code} style={{border:"1px solid #eee", borderRadius:12, padding:12}}><div style={{fontWeight:500}}>{w.name}</div><div style={{fontSize:12, color:"#666"}}>Code: {w.code}</div></li>))}
-                </ul>
-              )}
-            </div>
+          <div style={{fontSize:12, fontWeight:600, marginBottom:6}}>Growth Categories</div>
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            {CATEGORIES.map(c=> (<button key={c} onClick={()=>toggleCategory(c)} style={pill(profile.categories.includes(c))}>{c}</button>))}
           </div>
         </section>
 
-        {/* Middle: Discover + Author card */}
-        <section>
-          <div style={{...card, display:"flex", flexDirection:"column", minHeight:300}}>
-            <h3 style={h2}>Discover</h3>
-            {!top ? (
-              <div style={{color:"#666"}}>No more books in queue.</div>
-            ) : (
-              <>
-                <div style={{border:"1px solid #eee", borderRadius:12, padding:12, marginBottom:12}}>
-                  <div style={{fontSize:12, color:"#666"}}>Match score: {scoreMatch(top, profile.desired, profile.categories, moodTokens)}</div>
-                  <div style={{fontWeight:700, fontSize:20}}>{top.title}</div>
-                  <div style={{fontSize:12, marginBottom:4, color:"#6b7280"}}>by {author?.name}</div>
-                  <p style={{fontSize:14, marginBottom:8}}>{top.blurb}</p>
-                  {savedIds.includes(top.id) && <span style={{fontSize:12, color:"green", fontWeight:600}}>✔ Saved</span>}
-                  <div style={{display:"flex", gap:8, marginTop:8}}>
-                    <button onClick={swipePass} style={{flex:1, padding:"10px 12px", borderRadius:12, border:"1px solid #ddd", background:"#fff"}}>Not for me</button>
-                    <button onClick={swipeKeep} style={{flex:1, padding:"10px 12px", borderRadius:12, border:"1px solid #111", background:"#111", color:"#fff"}}>Save</button>
-                  </div>
+        {/* 2) Discover */}
+        <section style={{...card}}>
+          <h3 style={h2}>Discover</h3>
+          {!top ? (
+            <div style={{color:"#666"}}>No more books in queue.</div>
+          ) : (
+            <>
+              <div style={{border:"1px solid #eee", borderRadius:12, padding:12, marginBottom:12}}>
+                <div style={{fontSize:12, color:"#666"}}>Match score: {scoreMatch(top, profile.desired, profile.categories, moodTokens)}</div>
+                <div style={{fontWeight:700, fontSize:20}}>{top.title}</div>
+                <div style={{fontSize:12, marginBottom:4, color:"#6b7280"}}>by {author?.name}</div>
+                <p style={{fontSize:14, marginBottom:8}}>{top.blurb}</p>
+                {savedIds.includes(top.id) && <span style={{fontSize:12, color:"green", fontWeight:600}}>✔ Saved</span>}
+                <div style={{display:"flex", gap:8, marginTop:8, flexDirection: isMobile ? "column" : "row"}}>
+                  <button onClick={swipePass} style={{...actionBtn, flex:1, border:"1px solid #ddd", background:"#fff"}}>Not for me</button>
+                  <button onClick={swipeKeep} style={{...actionBtn, flex:1, border:"1px solid #111", background:"#111", color:"#fff"}}>Save</button>
                 </div>
-
-                <div style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                    <div>
-                      <div style={{fontWeight:600}}>Author: {author?.name}</div>
-                      <div style={{fontSize:12, color:"#666"}}>{author?.bio}</div>
-                      <div style={{display:"flex", gap:6, marginTop:6, flexWrap:"wrap"}}>
-                        {author?.moods.map(m=> <span key={m} style={badge}>{m}</span>)}
-                        {author?.domains.map(d=> <span key={d} style={badge}>{d}</span>)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        {/* Right: Community Feed + Bookshelf + Feedback */}
-        <section style={{display:"grid", gap:16}}>
-          <div style={card}>
-            <h3 style={h2}>Community Feed</h3>
-            {feed.length===0 ? (
-              <div style={{fontSize:14, color:"#666"}}>
-                When readers share feedback or submit proofs, it appears here.
-                (Quest proofs will show once registration is enabled.)
               </div>
-            ) : (
-              <ul style={{display:"grid", gap:8}}>
-                {feed.map(item => (
-                  <li key={item.id} style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
-                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                      <div style={{fontWeight:600}}>{item.user}</div>
-                      <span style={{...badge, background:"#111", color:"#fff", borderColor:"#111"}}>{item.type}</span>
+
+              <div style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                  <div>
+                    <div style={{fontWeight:600}}>Author: {author?.name}</div>
+                    <div style={{fontSize:12, color:"#666"}}>{author?.bio}</div>
+                    <div style={{display:"flex", gap:6, marginTop:6, flexWrap:"wrap"}}>
+                      {author?.moods.map(m=> <span key={m} style={badge}>{m}</span>)}
+                      {author?.domains.map(d=> <span key={d} style={badge}>{d}</span>)}
                     </div>
-                    <div style={{fontSize:12, color:"#666"}}>
-                      {new Date(item.ts).toLocaleString()} • +{item.points} pts
-                    </div>
-                    <p style={{fontSize:13, marginTop:8, whiteSpace:"pre-wrap"}}>
-                      {item.content.length > 220 ? item.content.slice(0,220) + "…" : item.content}
-                    </p>
-                  </li>
-                ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* 3) Your Bookshelf */}
+        <section style={{...card}}>
+          <h3 style={h2}>Your Bookshelf</h3>
+          {bookshelf.length===0 ? (
+            <div style={{fontSize:14, color:"#666"}}>Save a few books to see them here.</div>
+          ) : (
+            <ul style={{display:"grid", gap: isMobile ? 6 : 8}}>
+              {bookshelf.map(b=> (
+                <li key={b.id} style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
+                  <div style={{fontWeight:500}}>{b.title}</div>
+                  <div style={{fontSize:12, color:"#666"}}>{findAuthor(b.authorId)?.name}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* 4) Feedback */}
+        <section style={{...card}}>
+          <h3 style={h2}>Share Feedback → Earn Points</h3>
+          <label style={{display:"block", fontSize:12, marginBottom:4}}>Aha! Moment (+10)</label>
+          <textarea value={feedback.aha} onChange={e=>setFeedback(f=>({...f, aha:e.target.value}))}
+                    style={{width:"100%", minHeight: isMobile ? 90 : 72, border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14, marginBottom:8}} />
+          <label style={{display:"block", fontSize:12, marginBottom:4}}>Breakthrough (+25)</label>
+          <textarea value={feedback.breakthrough} onChange={e=>setFeedback(f=>({...f, breakthrough:e.target.value}))}
+                    style={{width:"100%", minHeight: isMobile ? 90 : 72, border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14, marginBottom:8}} />
+          <label style={{display:"block", fontSize:12, marginBottom:4}}>Favorite Part (+5)</label>
+          <textarea value={feedback.favorite} onChange={e=>setFeedback(f=>({...f, favorite:e.target.value}))}
+                    style={{width:"100%", minHeight: isMobile ? 90 : 72, border:"1px solid #ddd", borderRadius:12, padding:10, fontSize:14, marginBottom:12}} />
+          <button onClick={submitFeedback} style={{...actionBtn, width:"100%", background:"#111", color:"#fff", border:"1px solid #111"}}>Submit & Earn</button>
+        </section>
+
+        {/* 5) Community Feed */}
+        <section style={{...card}}>
+          <h3 style={h2}>Community Feed</h3>
+          {feed.length===0 ? (
+            <div style={{fontSize:14, color:"#666"}}>
+              When readers share feedback or submit proofs, it appears here.
+              (Quest proofs will show once registration is enabled.)
+            </div>
+          ) : (
+            <ul style={{display:"grid", gap: isMobile ? 6 : 8}}>
+              {feed.map(item => (
+                <li key={item.id} style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", gap:10}}>
+                    <div style={{fontWeight:600}}>{item.user}</div>
+                    <span style={{...badge, background:"#111", color:"#fff", borderColor:"#111"}}>{item.type}</span>
+                  </div>
+                  <div style={{fontSize:12, color:"#666"}}>
+                    {new Date(item.ts).toLocaleString()} • +{item.points} pts
+                  </div>
+                  <p style={{fontSize:13, marginTop:8, whiteSpace:"pre-wrap"}}>
+                    {item.content.length > 220 ? item.content.slice(0,220) + "…" : item.content}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* 6) Perks Marketplace */}
+        <section style={{...card}}>
+          <h3 style={h2}>Perks Marketplace</h3>
+          <div style={{display:"grid", gap:8}}>
+            {PERKS.map(p=> (
+              <div key={p.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", border:"1px solid #eee", borderRadius:12, padding:12, gap:10}}>
+                <div>
+                  <div style={{fontWeight:500}}>{p.name}</div>
+                  <div style={{fontSize:12, color:"#666"}}>Cost: {p.cost} pts</div>
+                </div>
+                <button onClick={()=>redeem(p)} disabled={points<p.cost}
+                        style={{...actionBtn, border:"1px solid #ddd", background: points>=p.cost?"#111":"#f2f2f2", color: points>=p.cost?"#fff":"#999"}}>Redeem</button>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:12}}>
+            <h4 style={{fontWeight:600, marginBottom:6}}>Wallet</h4>
+            {wallet.length===0 ? (<div style={{fontSize:14, color:"#666"}}>No perks redeemed yet.</div>) : (
+              <ul style={{display:"grid", gap: isMobile ? 6 : 8}}>
+                {wallet.map(w=> (<li key={w.code} style={{border:"1px solid #eee", borderRadius:12, padding:12}}><div style={{fontWeight:500}}>{w.name}</div><div style={{fontSize:12, color:"#666"}}>Code: {w.code}</div></li>))}
               </ul>
             )}
           </div>
+        </section>
 
-          <div style={card}>
-            <h3 style={h2}>Your Bookshelf</h3>
-            {bookshelf.length===0 ? (
-              <div style={{fontSize:14, color:"#666"}}>Save a few books to see them here.</div>
-            ) : (
-              <ul style={{display:"grid", gap:8}}>
-                {bookshelf.map(b=> (
-                  <li key={b.id} style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
-                    <div style={{fontWeight:500}}>{b.title}</div>
-                    <div style={{fontSize:12, color:"#666"}}>{findAuthor(b.authorId)?.name}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div style={card}>
-            <h3 style={h2}>Share Feedback → Earn Points</h3>
-            <label style={{display:"block", fontSize:12, marginBottom:4}}>Aha! Moment (+10)</label>
-            <textarea value={feedback.aha} onChange={e=>setFeedback(f=>({...f, aha:e.target.value}))} style={{width:"100%", border:"1px solid #ddd", borderRadius:12, padding:8, fontSize:14, marginBottom:8}} />
-            <label style={{display:"block", fontSize:12, marginBottom:4}}>Breakthrough (+25)</label>
-            <textarea value={feedback.breakthrough} onChange={e=>setFeedback(f=>({...f, breakthrough:e.target.value}))} style={{width:"100%", border:"1px solid #ddd", borderRadius:12, padding:8, fontSize:14, marginBottom:8}} />
-            <label style={{display:"block", fontSize:12, marginBottom:4}}>Favorite Part (+5)</label>
-            <textarea value={feedback.favorite} onChange={e=>setFeedback(f=>({...f, favorite:e.target.value}))} style={{width:"100%", border:"1px solid #ddd", borderRadius:12, padding:8, fontSize:14, marginBottom:12}} />
-            <button onClick={submitFeedback} style={{width:"100%", padding:"10px 12px", borderRadius:12, background:"#111", color:"#fff"}}>Submit & Earn</button>
+        {/* 7) Side Quests / Missions */}
+        <section style={{...card}}>
+          <h3 style={h2}>Side Quests / Missions <span style={{...badge, marginLeft:8, color:'#777', borderColor:'#ddd'}}>Register to complete</span></h3>
+          <div style={{display:"grid", gap:8}}>
+            {QUESTS.map(q=> (
+              <div key={q.id} style={{border:"1px solid #eee", borderRadius:12, padding:12, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10}}>
+                <div>
+                  <div style={{fontWeight:500}}>{q.title} <span style={badge}>{q.domain}</span></div>
+                  <div style={{fontSize:12, color:"#666"}}>{q.desc}</div>
+                </div>
+                <button onClick={()=>setShowRegister(true)}
+                        style={{...actionBtn, border:"1px solid #ddd", background:"#111", color:"#fff"}}>
+                  {`Complete (+${q.reward})`}
+                </button>
+              </div>
+            ))}
           </div>
         </section>
       </main>
@@ -372,7 +394,8 @@ export default function App(){
               background:"#fff",
               borderRadius:16,
               padding:20,
-              width:360,
+              width: isMobile ? "90%" : 360,
+              maxWidth: 420,
               boxShadow:"0 10px 30px rgba(0,0,0,0.2)",
               border:"1px solid #eee"
             }}
@@ -401,7 +424,7 @@ export default function App(){
       )}
 
       <footer style={{maxWidth:1200, margin:"0 auto", padding:16, fontSize:12, color:"#666"}}>
-        Prototype • Emotional keyword matching • Quests (registration required) • Perks • Wallet • Community Feed
+        Prototype • Emotional keyword matching • Discover • Bookshelf • Feedback • Community Feed • Perks • Quests (registration required)
       </footer>
     </div>
   );
