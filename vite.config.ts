@@ -1,8 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Use "/" in dev, "/matchreads/" only for production builds (GitHub Pages)
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [react()],
-  base: mode === 'production' ? '/matchreads/' : '/',
-}))
+  base: '/matchreads/',   // 👈 must match repo name exactly, case-sensitive
+})
