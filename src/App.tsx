@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo, useState, useEffect } from "react";
 
 // Stable full prototype. Single JSX file, no external CSS.
@@ -64,7 +63,7 @@ function mapTokens(tokens){
     if(["mystery","mysterious"].includes(t)) emo.add("mysterious");
     if(["resilience","resilient","grit"].includes(t)) emo.add("resilient");
     if(["joy","joyful","happy"].includes(t)) emo.add("joyful");
-    if(["reflect","reflective","introspect"].includes(t)) emo.add("reflective");
+    if(["reflect","reflective","introspect"].includes(t)) emo add("reflective");
     if(["mind","mental","focus"].includes(t)) cat.add("mental");
     if(["spirit","spiritual","faith"].includes(t)) cat.add("spiritual");
     if(["feel","emotional","emotion"].includes(t)) cat.add("emotional");
@@ -98,7 +97,7 @@ export default function App(){
   const [showRegister,setShowRegister] = useState(false);
   const [feed, setFeed] = useState([]); // community feed
 
-  // 🔹 Mobile detector
+  // Mobile detector
   const [isMobile, setIsMobile] = useState(false);
   useEffect(()=>{
     const mq = window.matchMedia("(max-width:768px)");
@@ -126,6 +125,7 @@ export default function App(){
     );
   },[queue,profile.desired,profile.categories,moodTokens]);
   const top = sorted[0];
+  const author = top ? AUTHORS.find(a=>a.id===top.authorId) : null;
 
   function toggleEmotion(e){ setProfile(p=>({ ...p, desired: p.desired.includes(e) ? p.desired.filter(x=>x!==e) : [...p.desired, e] })); }
   function toggleCategory(c){ setProfile(p=>({ ...p, categories: p.categories.includes(c) ? p.categories.filter(x=>x!==c) : [...p.categories, c] })); }
@@ -163,9 +163,7 @@ export default function App(){
   function redeem(perk){ if(points<perk.cost) return; setPoints(p=>p-perk.cost); const code=`${perk.type.toUpperCase()}-${perk.id}-${Math.random().toString(36).slice(2,8)}`; setWallet(w=>[...w,{...perk, code}]); }
   function followAuthor(aid){ if(followedAuthors.includes(aid)) return; setFollowedAuthors(f=>[...f,aid]); }
 
-  const tier = tierFromPoints(points);
-
-  // 🔹 Responsive UI helpers
+  // Responsive UI helpers
   const pill = (active)=>({
     padding: isMobile ? "6px 12px" : "4px 10px",
     borderRadius:999,
@@ -179,8 +177,6 @@ export default function App(){
   const badge = { padding:"2px 8px", borderRadius:999, border:"1px solid #ddd", fontSize: isMobile ? 11 : 12 };
   const actionBtn = { padding: isMobile ? "12px 14px" : "10px 12px", borderRadius:12, fontSize: isMobile ? 15 : 14, width: isMobile ? "100%" : "auto" };
 
-  const author = top ? AUTHORS.find(a=>a.id===top.authorId) : null;
-
   return (
     <div style={{minHeight:"100vh", background:"#fafafa", color:"#111"}}>
       {/* Header */}
@@ -188,7 +184,7 @@ export default function App(){
         <div style={{maxWidth:1200, margin:"0 auto", padding: isMobile ? "10px 12px" : "12px 16px", display:"flex", alignItems:"center", gap:12}}>
           <div style={{fontWeight:700, fontSize:20}}>MatchReads</div>
           <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center"}}>
-            <span style={badge}>{tier.name}</span>
+            <span style={badge}>{tierFromPoints(points).name}</span>
             <span aria-label="points" style={{...badge, background:"#111", color:"#fff", borderColor:"#111"}}>{points} pts</span>
           </div>
         </div>
@@ -379,6 +375,7 @@ export default function App(){
           role="dialog"
           aria-modal="true"
           aria-label="Please register"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowRegister(false); }}
           style={{
             position:"fixed",
             inset:0,
@@ -390,6 +387,8 @@ export default function App(){
           }}
         >
           <div
+            tabIndex={-1}
+            onKeyDown={(e)=>{ if(e.key==="Escape") setShowRegister(false); }}
             style={{
               background:"#fff",
               borderRadius:16,
@@ -397,24 +396,47 @@ export default function App(){
               width: isMobile ? "90%" : 360,
               maxWidth: 420,
               boxShadow:"0 10px 30px rgba(0,0,0,0.2)",
-              border:"1px solid #eee"
+              border:"1px solid #eee",
+              outline:"none"
             }}
           >
             <div style={{fontWeight:700, fontSize:18, marginBottom:8}}>Please register</div>
             <p style={{fontSize:14, color:"#555", marginBottom:16}}>
               Side quests and missions require an account. Create one to complete quests and earn points.
             </p>
-            <div style={{display:"flex", gap:8, justifyContent:"flex-end"}}>
+
+            <div style={{display:"flex", gap:8, justifyContent:"space-between", marginTop:8}}>
               <button
+                type="button"
                 onClick={()=>setShowRegister(false)}
-                style={{padding:"8px 12px", borderRadius:10, border:"1px solid #ddd", background:"#fff"}}
+                style={{
+                  padding:"8px 12px",
+                  borderRadius:10,
+                  border:"1px solid #ddd",
+                  background:"#f6f6f6",
+                  color:"#111",
+                  fontWeight:600,
+                  minWidth:96
+                }}
               >
                 Close
               </button>
+
               <button
+                type="button"
                 disabled
+                aria-disabled="true"
                 title="Not available in prototype"
-                style={{padding:"8px 12px", borderRadius:10, background:"#111", color:"#fff", opacity:0.5, cursor:"not-allowed"}}
+                style={{
+                  padding:"8px 12px",
+                  borderRadius:10,
+                  background:"#111",
+                  color:"#fff",
+                  opacity:0.5,
+                  cursor:"not-allowed",
+                  minWidth:96,
+                  border:"1px solid #111"
+                }}
               >
                 Register
               </button>
